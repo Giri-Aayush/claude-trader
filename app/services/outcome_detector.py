@@ -20,9 +20,9 @@ log = logging.getLogger(__name__)
 
 
 async def _get_current_price() -> float:
-    exchange = ccxt.binanceusdm()
+    exchange = ccxt.bybit({"options": {"defaultType": "linear"}})
     try:
-        ticker = await exchange.fetch_ticker(settings.SYMBOL)
+        ticker = await exchange.fetch_ticker("BTC/USDT:USDT")
         return float(ticker["last"])
     finally:
         await exchange.close()

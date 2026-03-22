@@ -32,10 +32,11 @@ TF_DURATION = {
     "D1":  timedelta(days=1),
 }
 LIMIT = 200  # bars per fetch
+CCXT_SYMBOL = "BTC/USDT:USDT"  # Bybit unified linear perp symbol
 
 
-def _make_exchange() -> ccxt.binanceusdm:
-    return ccxt.binanceusdm({"options": {"defaultType": "future"}})
+def _make_exchange() -> ccxt.bybit:
+    return ccxt.bybit({"options": {"defaultType": "linear"}})
 
 
 async def fetch_candles(tf_key: str) -> None:
@@ -43,7 +44,7 @@ async def fetch_candles(tf_key: str) -> None:
     ccxt_tf = TIMEFRAMES[tf_key]
     exchange = _make_exchange()
     try:
-        raw = await exchange.fetch_ohlcv(settings.SYMBOL, timeframe=ccxt_tf, limit=LIMIT + 1)
+        raw = await exchange.fetch_ohlcv(CCXT_SYMBOL, timeframe=ccxt_tf, limit=LIMIT + 1)
         # Drop the last bar — it may still be forming
         raw = raw[:-1]
 
@@ -90,7 +91,7 @@ async def fetch_funding_rate() -> None:
     """Fetch recent funding rate history and upsert."""
     exchange = _make_exchange()
     try:
-        data = await exchange.fetch_funding_rate_history(settings.SYMBOL, limit=10)
+        data = await exchange.fetch_funding_rate_history(CCXT_SYMBOL, limit=10)
         rows = []
         for item in data:
             rows.append({
@@ -117,7 +118,7 @@ async def fetch_open_interest() -> None:
     """Fetch current open interest snapshot and insert."""
     exchange = _make_exchange()
     try:
-        oi = await exchange.fetch_open_interest(settings.SYMBOL)
+        oi = await exchange.fetch_open_interest(CCXT_SYMBOL)
         now = datetime.now(tz=timezone.utc).replace(second=0, microsecond=0)
         row = {
             "symbol": settings.SYMBOL,
