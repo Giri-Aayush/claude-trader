@@ -33,6 +33,12 @@ MIN_RR = 2.5
 class EmaMomentumStrategy(BaseStrategy):
     name = "ema_momentum"
 
+    def __init__(self, params: dict | None = None):
+        p = params or {}
+        self.ema_fast = int(p.get("ema_fast", EMA_FAST))
+        self.ema_slow = int(p.get("ema_slow", EMA_SLOW))
+        self.adx_threshold = float(p.get("adx_threshold", ADX_THRESHOLD))
+
     def generate(self, candles: dict[str, pd.DataFrame]) -> Optional[CandidateSignal]:
         m15 = candles.get("M15")
         h4 = candles.get("H4")
@@ -50,12 +56,12 @@ class EmaMomentumStrategy(BaseStrategy):
         if h4_adx is None or h4_adx.empty:
             return None
         h4_adx_val = float(h4_adx[f"ADX_{ADX_PERIOD}"].iloc[-1])
-        if pd.isna(h4_adx_val) or h4_adx_val < ADX_THRESHOLD:
+        if pd.isna(h4_adx_val) or h4_adx_val < self.adx_threshold:
             return None  # market is choppy, skip
 
         # M15 indicators
-        m15["ema_fast"] = ta.ema(m15["close"], length=EMA_FAST)
-        m15["ema_slow"] = ta.ema(m15["close"], length=EMA_SLOW)
+        m15["ema_fast"] = ta.ema(m15["close"], length=self.ema_fast)
+        m15["ema_slow"] = ta.ema(m15["close"], length=self.ema_slow)
         m15["ema_trend"] = ta.ema(m15["close"], length=EMA_TREND)
         m15["atr"] = ta.atr(m15["high"], m15["low"], m15["close"], length=ATR_PERIOD)
 
@@ -108,7 +114,7 @@ class EmaMomentumStrategy(BaseStrategy):
                 confidence_score=round(min(88.0, 60.0 + h4_adx_val), 2),
                 reasoning=(
                     f"EMA momentum LONG. H4 ADX={h4_adx_val:.1f} (strong trend). "
-                    f"M15 EMA9 {prev_fast:.0f}→{ema_fast:.0f} crossed above EMA21 {ema_slow:.0f}. "
+                    f"M15 EMA{self.ema_fast} {ef_prev:.0f}→{ema_fast:.0f} crossed above EMA{self.ema_slow} {ema_slow:.0f}. "
                     f"Price {close:.2f} > EMA50 {ema_trend:.2f}. R:R={rr:.2f}."
                 ),
                 bar_index=bar_index,
@@ -132,7 +138,7 @@ class EmaMomentumStrategy(BaseStrategy):
                 confidence_score=round(min(88.0, 60.0 + h4_adx_val), 2),
                 reasoning=(
                     f"EMA momentum SHORT. H4 ADX={h4_adx_val:.1f} (strong trend). "
-                    f"M15 EMA9 {prev_fast:.0f}→{ema_fast:.0f} crossed below EMA21 {ema_slow:.0f}. "
+                    f"M15 EMA{self.ema_fast} {ef_prev:.0f}→{ema_fast:.0f} crossed below EMA{self.ema_slow} {ema_slow:.0f}. "
                     f"Price {close:.2f} < EMA50 {ema_trend:.2f}. R:R={rr:.2f}."
                 ),
                 bar_index=bar_index,

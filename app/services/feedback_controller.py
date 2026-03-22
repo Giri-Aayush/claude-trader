@@ -69,7 +69,11 @@ async def update_performance_scores() -> None:
             if perf:
                 perf.win_rate = metrics["win_rate"]
                 perf.sharpe_ratio = metrics["sharpe"]
-                perf.avg_rr = sum(pnl_list) / len(pnl_list) if pnl_list else 2.0
+                wins = [p for p in pnl_list if p > 0]
+                losses = [abs(p) for p in pnl_list if p < 0]
+                avg_win = sum(wins) / len(wins) if wins else 0.0
+                avg_loss = sum(losses) / len(losses) if losses else 1.0
+                perf.avg_rr = round(avg_win / avg_loss, 4) if avg_loss > 0 else 2.0
                 perf.performance_score = perf_score
                 perf.total_trades = metrics["total_trades"]
                 perf.last_updated = datetime.now(tz=timezone.utc)

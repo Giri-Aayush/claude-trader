@@ -16,7 +16,7 @@ from sqlalchemy import select, desc
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.models.tables import Candle, StrategyPerformance
+from app.models.tables import Candle, StrategyPerformance, OptimizedParams
 from app.strategies.base import CandidateSignal
 from app.strategies.liquidity_sweep import LiquiditySweepStrategy
 from app.strategies.trend_continuation import TrendContinuationStrategy
@@ -25,11 +25,11 @@ from app.strategies.ema_momentum import EmaMomentumStrategy
 
 log = logging.getLogger(__name__)
 
-ALL_STRATEGIES = [
-    LiquiditySweepStrategy(),
-    TrendContinuationStrategy(),
-    BreakoutExpansionStrategy(),
-    EmaMomentumStrategy(),
+STRATEGY_CLASSES = [
+    LiquiditySweepStrategy,
+    TrendContinuationStrategy,
+    BreakoutExpansionStrategy,
+    EmaMomentumStrategy,
 ]
 
 MIN_PERFORMANCE_SCORE = 30.0  # strategies below this are suspended
@@ -69,6 +69,16 @@ async def _get_performance_scores() -> dict[str, float]:
         return {r.strategy_name: float(r.performance_score) for r in rows}
 
 
+async def _get_optimized_params() -> dict[str, dict]:
+    """Load active optimized params for all strategies from the DB."""
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(OptimizedParams).where(OptimizedParams.is_active == True)
+        )
+        rows = result.scalars().all()
+        return {r.strategy_name: dict(r.params) for r in rows}
+
+
 async def run() -> Optional[CandidateSignal]:
     """
     Load candles, run all strategies above the min score, return the
@@ -80,9 +90,11 @@ async def run() -> Optional[CandidateSignal]:
         return None
 
     scores = await _get_performance_scores()
+    opt_params = await _get_optimized_params()
     candidates: list[CandidateSignal] = []
 
-    for strategy in ALL_STRATEGIES:
+    for strategy_cls in STRATEGY_CLASSES:
+        strategy = strategy_cls(opt_params.get(strategy_cls.name))
         score = scores.get(strategy.name, 50.0)
         if score < MIN_PERFORMANCE_SCORE:
             log.info("Strategy %s suspended (score=%.1f).", strategy.name, score)

@@ -20,8 +20,7 @@ from typing import Optional
 
 import pandas as pd
 import numpy as np
-from sqlalchemy import select, desc
-from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy import select
 
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -42,11 +41,11 @@ MIN_TRADES_FOR_VALID_BT = 10
 OVERFITTING_OOS_THRESHOLD = 0.80  # OOS win rate must be >= 80% of training win rate
 
 
-ALL_STRATEGIES = {
-    "liquidity_sweep": LiquiditySweepStrategy(),
-    "trend_continuation": TrendContinuationStrategy(),
-    "breakout_expansion": BreakoutExpansionStrategy(),
-    "ema_momentum": EmaMomentumStrategy(),
+STRATEGY_CLASSES = {
+    "liquidity_sweep": LiquiditySweepStrategy,
+    "trend_continuation": TrendContinuationStrategy,
+    "breakout_expansion": BreakoutExpansionStrategy,
+    "ema_momentum": EmaMomentumStrategy,
 }
 
 
@@ -150,7 +149,8 @@ async def run_backtests() -> None:
         m15 = candles["M15"]
         split_idx = int(len(m15) * TRAIN_SPLIT)
 
-        for strategy_name, strategy in ALL_STRATEGIES.items():
+        for strategy_name, strategy_cls in STRATEGY_CLASSES.items():
+            strategy = strategy_cls()
             log.info("Backtesting %s / %dd window...", strategy_name, window_days)
 
             # Training set

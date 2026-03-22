@@ -92,10 +92,10 @@ def setup_scheduler() -> AsyncIOScheduler:
         misfire_grace_time=60,
     )
 
-    # Every 15 min (offset 2 min): run signal pipeline
+    # Every 30 min (offset 2 min): run signal pipeline
     scheduler.add_job(
         signal_pipeline.run,
-        IntervalTrigger(minutes=15, start_date="2024-01-01 00:02:00"),
+        IntervalTrigger(minutes=30, start_date="2024-01-01 00:02:00"),
         id="signal_pipeline",
         replace_existing=True,
         misfire_grace_time=120,

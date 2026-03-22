@@ -8,11 +8,9 @@ All data is upserted into Postgres.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime, timezone, timedelta
 
 import ccxt.async_support as ccxt
-from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.config import settings
@@ -26,6 +24,12 @@ TIMEFRAMES = {
     "H1":  "1h",
     "H4":  "4h",
     "D1":  "1d",
+}
+TF_DURATION = {
+    "M15": timedelta(minutes=15),
+    "H1":  timedelta(hours=1),
+    "H4":  timedelta(hours=4),
+    "D1":  timedelta(days=1),
 }
 LIMIT = 200  # bars per fetch
 
@@ -46,7 +50,7 @@ async def fetch_candles(tf_key: str) -> None:
         rows = []
         for bar in raw:
             ts_open = datetime.fromtimestamp(bar[0] / 1000, tz=timezone.utc)
-            # close_time approximation: open_time + timeframe duration - 1ms
+            ts_close = ts_open + TF_DURATION[tf_key] - timedelta(milliseconds=1)
             rows.append({
                 "symbol": settings.SYMBOL,
                 "timeframe": tf_key,
@@ -56,7 +60,7 @@ async def fetch_candles(tf_key: str) -> None:
                 "low": bar[3],
                 "close": bar[4],
                 "volume": bar[5],
-                "close_time": ts_open,  # will be updated below
+                "close_time": ts_close,
             })
 
         async with AsyncSessionLocal() as session:

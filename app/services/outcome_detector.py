@@ -79,6 +79,10 @@ async def _resolve_signal(signal: Signal, exit_price: float, result: str) -> Non
 
         await session.commit()
 
+    # Trip circuit breaker if consecutive losses threshold reached
+    if result == "LOSS" and perf:
+        await risk_manager._check_and_trip_circuit_breaker(signal.strategy_name)
+
     log.info("Signal %d resolved: %s @ %.2f (PnL: %.2f%%)", signal.id, result, exit_price, pnl_pct * 100)
 
 

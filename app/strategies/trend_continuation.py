@@ -32,6 +32,12 @@ MIN_RR = 2.0
 class TrendContinuationStrategy(BaseStrategy):
     name = "trend_continuation"
 
+    def __init__(self, params: dict | None = None):
+        p = params or {}
+        self.ema_fast = int(p.get("ema_fast", EMA_FAST))
+        self.ema_mid = int(p.get("ema_mid", EMA_MID))
+        self.min_rr = float(p.get("min_rr", MIN_RR))
+
     def generate(self, candles: dict[str, pd.DataFrame]) -> Optional[CandidateSignal]:
         m15 = candles.get("M15")
         h1 = candles.get("H1")
@@ -39,7 +45,7 @@ class TrendContinuationStrategy(BaseStrategy):
 
         if m15 is None or h1 is None or h4 is None:
             return None
-        if len(m15) < EMA_SLOW + 5 or len(h1) < EMA_MID + 5 or len(h4) < EMA_SLOW + 5:
+        if len(m15) < EMA_SLOW + 5 or len(h1) < self.ema_mid + 5 or len(h4) < EMA_SLOW + 5:
             return None
 
         m15 = m15.copy().reset_index(drop=True)
@@ -47,7 +53,7 @@ class TrendContinuationStrategy(BaseStrategy):
         h4 = h4.copy().reset_index(drop=True)
 
         # H4 macro trend
-        h4["ema50"] = ta.ema(h4["close"], length=EMA_MID)
+        h4["ema50"] = ta.ema(h4["close"], length=self.ema_mid)
         h4["ema200"] = ta.ema(h4["close"], length=EMA_SLOW)
         h4_last = h4.iloc[-1]
         if pd.isna(h4_last["ema50"]) or pd.isna(h4_last["ema200"]):
@@ -57,7 +63,7 @@ class TrendContinuationStrategy(BaseStrategy):
         h4_bearish = float(h4_last["ema50"]) < float(h4_last["ema200"])
 
         # H1 intermediate trend
-        h1["ema50"] = ta.ema(h1["close"], length=EMA_MID)
+        h1["ema50"] = ta.ema(h1["close"], length=self.ema_mid)
         h1_last = h1.iloc[-1]
         if pd.isna(h1_last["ema50"]):
             return None
@@ -65,8 +71,8 @@ class TrendContinuationStrategy(BaseStrategy):
         h1_below_ema = float(h1_last["close"]) < float(h1_last["ema50"])
 
         # M15 entry signals
-        m15["ema20"] = ta.ema(m15["close"], length=EMA_FAST)
-        m15["ema50"] = ta.ema(m15["close"], length=EMA_MID)
+        m15["ema20"] = ta.ema(m15["close"], length=self.ema_fast)
+        m15["ema50"] = ta.ema(m15["close"], length=self.ema_mid)
         m15["rsi"] = ta.rsi(m15["close"], length=RSI_PERIOD)
         m15["atr"] = ta.atr(m15["high"], m15["low"], m15["close"], length=ATR_PERIOD)
 
@@ -93,7 +99,7 @@ class TrendContinuationStrategy(BaseStrategy):
                 sl_dist = close - sl
                 if sl_dist <= 0:
                     return None
-                tp = close + MIN_RR * sl_dist
+                tp = close + self.min_rr * sl_dist
                 rr = (tp - close) / sl_dist
                 return CandidateSignal(
                     strategy_name=self.name,
@@ -121,7 +127,7 @@ class TrendContinuationStrategy(BaseStrategy):
                 sl_dist = sl - close
                 if sl_dist <= 0:
                     return None
-                tp = close - MIN_RR * sl_dist
+                tp = close - self.min_rr * sl_dist
                 rr = (close - tp) / sl_dist
                 return CandidateSignal(
                     strategy_name=self.name,

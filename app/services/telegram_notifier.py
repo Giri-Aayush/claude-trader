@@ -41,7 +41,7 @@ async def send_signal(
     tp_sign = "+" if direction == "LONG" else "−"
 
     msg = (
-        f"{arrow} *{direction}*  ·  BTCUSDT.P  ·  {strategy.replace('_', ' ').title()}\n"
+        f"{arrow} *{direction}*  ·  {settings.SYMBOL}  ·  {strategy.replace('_', ' ').title()}\n"
         f"\n"
         f"`Entry   ${entry:>12,.2f}`\n"
         f"`SL      ${sl:>12,.2f}  ({sl_sign}{sl_pct:.2f}%)`\n"

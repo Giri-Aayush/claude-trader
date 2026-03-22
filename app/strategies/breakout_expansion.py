@@ -37,26 +37,32 @@ MIN_RR = 2.0
 class BreakoutExpansionStrategy(BaseStrategy):
     name = "breakout_expansion"
 
+    def __init__(self, params: dict | None = None):
+        p = params or {}
+        self.bb_length = int(p.get("bb_length", BB_LENGTH))
+        self.squeeze_bars = int(p.get("squeeze_bars", SQUEEZE_BARS))
+        self.adx_threshold = float(p.get("adx_threshold", 20.0))
+
     def generate(self, candles: dict[str, pd.DataFrame]) -> Optional[CandidateSignal]:
         m15 = candles.get("M15")
         h1 = candles.get("H1")
 
         if m15 is None or h1 is None:
             return None
-        if len(h1) < BB_LENGTH + SQUEEZE_BARS + 5 or len(m15) < BB_LENGTH + 5:
+        if len(h1) < self.bb_length + self.squeeze_bars + 5 or len(m15) < self.bb_length + 5:
             return None
 
         h1 = h1.copy().reset_index(drop=True)
         m15 = m15.copy().reset_index(drop=True)
 
         # Calculate BB and KC on H1 to detect squeeze
-        bbands = ta.bbands(h1["close"], length=BB_LENGTH, std=BB_STD)
+        bbands = ta.bbands(h1["close"], length=self.bb_length, std=BB_STD)
         if bbands is None or bbands.empty:
             return None
 
-        h1["bb_upper"] = bbands.get(f"BBU_{BB_LENGTH}_{BB_STD}", bbands.iloc[:, 0])
-        h1["bb_lower"] = bbands.get(f"BBL_{BB_LENGTH}_{BB_STD}", bbands.iloc[:, 2])
-        h1["bb_mid"] = bbands.get(f"BBM_{BB_LENGTH}_{BB_STD}", bbands.iloc[:, 1])
+        h1["bb_upper"] = bbands.get(f"BBU_{self.bb_length}_{BB_STD}", bbands.iloc[:, 0])
+        h1["bb_lower"] = bbands.get(f"BBL_{self.bb_length}_{BB_STD}", bbands.iloc[:, 2])
+        h1["bb_mid"] = bbands.get(f"BBM_{self.bb_length}_{BB_STD}", bbands.iloc[:, 1])
 
         kc = ta.kc(h1["high"], h1["low"], h1["close"], length=KC_LENGTH, scalar=KC_MULT)
         if kc is None or kc.empty:
@@ -68,19 +74,19 @@ class BreakoutExpansionStrategy(BaseStrategy):
         h1["squeezed"] = (h1["bb_upper"] < h1["kc_upper"]) & (h1["bb_lower"] > h1["kc_lower"])
 
         # Check squeeze fired: last bar not squeezed, previous N bars were
-        recent = h1.iloc[-(SQUEEZE_BARS + 1):]
+        recent = h1.iloc[-(self.squeeze_bars + 1):]
         if recent.iloc[-1]["squeezed"]:
             return None  # still in squeeze, no signal
         if not recent.iloc[:-1]["squeezed"].all():
             return None  # squeeze wasn't sustained
 
         # Squeeze has just fired — now check M15 for breakout direction
-        m15_bbands = ta.bbands(m15["close"], length=BB_LENGTH, std=BB_STD)
+        m15_bbands = ta.bbands(m15["close"], length=self.bb_length, std=BB_STD)
         if m15_bbands is None or m15_bbands.empty:
             return None
 
-        m15["bb_upper"] = m15_bbands.get(f"BBU_{BB_LENGTH}_{BB_STD}", m15_bbands.iloc[:, 0])
-        m15["bb_lower"] = m15_bbands.get(f"BBL_{BB_LENGTH}_{BB_STD}", m15_bbands.iloc[:, 2])
+        m15["bb_upper"] = m15_bbands.get(f"BBU_{self.bb_length}_{BB_STD}", m15_bbands.iloc[:, 0])
+        m15["bb_lower"] = m15_bbands.get(f"BBL_{self.bb_length}_{BB_STD}", m15_bbands.iloc[:, 2])
         m15["adx"] = ta.adx(m15["high"], m15["low"], m15["close"], length=ADX_PERIOD).get(
             f"ADX_{ADX_PERIOD}", pd.Series(dtype=float)
         )
@@ -98,7 +104,7 @@ class BreakoutExpansionStrategy(BaseStrategy):
         adx = float(last["adx"])
         atr = float(last["atr"])
 
-        if adx < 20:
+        if adx < self.adx_threshold:
             return None  # no directional momentum
 
         # LONG breakout
@@ -120,7 +126,7 @@ class BreakoutExpansionStrategy(BaseStrategy):
                 take_profit=round(tp, 2),
                 confidence_score=round(min(85.0, 55.0 + adx), 2),
                 reasoning=(
-                    f"Squeeze breakout LONG. H1 BB squeeze fired after {SQUEEZE_BARS} bars. "
+                    f"Squeeze breakout LONG. H1 BB squeeze fired after {self.squeeze_bars} bars. "
                     f"M15 close {close:.2f} > BB upper {bb_upper:.2f}. ADX={adx:.1f}. R:R={rr:.2f}."
                 ),
                 bar_index=bar_index,
@@ -145,7 +151,7 @@ class BreakoutExpansionStrategy(BaseStrategy):
                 take_profit=round(tp, 2),
                 confidence_score=round(min(85.0, 55.0 + adx), 2),
                 reasoning=(
-                    f"Squeeze breakout SHORT. H1 BB squeeze fired after {SQUEEZE_BARS} bars. "
+                    f"Squeeze breakout SHORT. H1 BB squeeze fired after {self.squeeze_bars} bars. "
                     f"M15 close {close:.2f} < BB lower {bb_lower:.2f}. ADX={adx:.1f}. R:R={rr:.2f}."
                 ),
                 bar_index=bar_index,

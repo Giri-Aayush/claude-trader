@@ -30,10 +30,16 @@ ATR_PERIOD = 14
 class LiquiditySweepStrategy(BaseStrategy):
     name = "liquidity_sweep"
 
+    def __init__(self, params: dict | None = None):
+        p = params or {}
+        self.swing_lookback = int(p.get("swing_lookback", SWING_LOOKBACK))
+        self.min_sweep_mult = float(p.get("min_sweep_mult", MIN_SWEEP_MULT))
+        self.min_rr = float(p.get("min_rr", MIN_RR))
+
     def generate(self, candles: dict[str, pd.DataFrame]) -> Optional[CandidateSignal]:
         m15 = candles.get("M15")
         h1 = candles.get("H1")
-        if m15 is None or h1 is None or len(m15) < SWING_LOOKBACK + 5 or len(h1) < SWING_LOOKBACK + 5:
+        if m15 is None or h1 is None or len(m15) < self.swing_lookback + 5 or len(h1) < self.swing_lookback + 5:
             return None
 
         m15 = m15.copy().reset_index(drop=True)
@@ -55,11 +61,11 @@ class LiquiditySweepStrategy(BaseStrategy):
         high = float(last["high"])
 
         # --- Swing levels from H1 ---
-        swing_low = float(h1["low"].iloc[-SWING_LOOKBACK:].min())
-        swing_high = float(h1["high"].iloc[-SWING_LOOKBACK:].max())
+        swing_low = float(h1["low"].iloc[-self.swing_lookback:].min())
+        swing_high = float(h1["high"].iloc[-self.swing_lookback:].max())
 
         # --- Check LONG setup (sweep of lows) ---
-        swept_low = low < swing_low and (swing_low - low) >= MIN_SWEEP_MULT * atr
+        swept_low = low < swing_low and (swing_low - low) >= self.min_sweep_mult * atr
         rejected_low = close > swing_low  # closed back above the level
 
         if swept_low and rejected_low:
@@ -68,12 +74,12 @@ class LiquiditySweepStrategy(BaseStrategy):
             sl_dist = entry - sl
             if sl_dist <= 0:
                 return None
-            tp = entry + MIN_RR * sl_dist
+            tp = entry + self.min_rr * sl_dist
             rr = (tp - entry) / sl_dist
-            if rr < MIN_RR:
+            if rr < self.min_rr:
                 return None
 
-            confidence = min(90.0, 60.0 + (rr - MIN_RR) * 10)
+            confidence = min(90.0, 60.0 + (rr - self.min_rr) * 10)
             return CandidateSignal(
                 strategy_name=self.name,
                 symbol="BTCUSDT",
@@ -92,7 +98,7 @@ class LiquiditySweepStrategy(BaseStrategy):
             )
 
         # --- Check SHORT setup (sweep of highs) ---
-        swept_high = high > swing_high and (high - swing_high) >= MIN_SWEEP_MULT * atr
+        swept_high = high > swing_high and (high - swing_high) >= self.min_sweep_mult * atr
         rejected_high = close < swing_high
 
         if swept_high and rejected_high:
@@ -101,12 +107,12 @@ class LiquiditySweepStrategy(BaseStrategy):
             sl_dist = sl - entry
             if sl_dist <= 0:
                 return None
-            tp = entry - MIN_RR * sl_dist
+            tp = entry - self.min_rr * sl_dist
             rr = (entry - tp) / sl_dist
-            if rr < MIN_RR:
+            if rr < self.min_rr:
                 return None
 
-            confidence = min(90.0, 60.0 + (rr - MIN_RR) * 10)
+            confidence = min(90.0, 60.0 + (rr - self.min_rr) * 10)
             return CandidateSignal(
                 strategy_name=self.name,
                 symbol="BTCUSDT",

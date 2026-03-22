@@ -101,12 +101,8 @@ async def optimize_strategy(strategy_name: str, candles: dict) -> None:
     best_pnl = []
 
     for params in combos:
-        # Instantiate strategy (default params — param injection is strategy-specific)
-        # For now we replay with default params and record the score per combo.
-        # Full param injection would require refactoring strategy __init__; this
-        # establishes the optimizer pipeline that can be extended per strategy.
         strategy_cls = strategy_map[strategy_name]
-        strategy = strategy_cls()
+        strategy = strategy_cls(params)
 
         signals = _replay_strategy(strategy, candles)
         pnl_list = []

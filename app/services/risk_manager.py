@@ -14,11 +14,11 @@ Also checks if funding rate cost would eat >20% of expected profit.
 import logging
 from datetime import datetime, timezone, date
 
-from sqlalchemy import select, desc, func
+from sqlalchemy import select
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.models.tables import SystemState, StrategyPerformance, Outcome, Signal
+from app.models.tables import SystemState, StrategyPerformance
 from app.services import telegram_notifier
 from app.strategies.base import CandidateSignal
 
@@ -134,7 +134,6 @@ async def compute_position_size(signal: CandidateSignal) -> tuple[float, float]:
     """
     # Layer 4: circuit breaker check
     if await is_circuit_breaker_active():
-        await _check_and_trip_circuit_breaker(signal.strategy_name)
         return 0.0, 0.0
 
     # Layer 3: daily loss check

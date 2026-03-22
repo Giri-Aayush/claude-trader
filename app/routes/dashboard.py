@@ -41,10 +41,10 @@ async def _dashboard_data(request: Request) -> HTMLResponse:
             select(Signal).order_by(Signal.generated_at.desc()).limit(50)
         )).scalars().all()
 
-        # Recent outcomes (for equity curve)
-        outcomes = (await session.execute(
-            select(Outcome).order_by(Outcome.resolved_at).limit(200)
-        )).scalars().all()
+        # Recent outcomes (for equity curve) — fetch most recent 200 then reverse for chronological order
+        outcomes = list(reversed((await session.execute(
+            select(Outcome).order_by(Outcome.resolved_at.desc()).limit(200)
+        )).scalars().all()))
 
         # System state
         cb = await session.get(SystemState, "circuit_breaker_active")
