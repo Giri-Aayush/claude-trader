@@ -56,19 +56,19 @@ async def _health_digest() -> None:
 
 
 def setup_scheduler() -> AsyncIOScheduler:
-    # Every 30 min: refresh candles + funding rate + OI
+    # Every 15 min: refresh candles + funding rate + OI (matches M15 candle close)
     scheduler.add_job(
         candle_ingestor.refresh_all,
-        IntervalTrigger(minutes=30),
+        IntervalTrigger(minutes=15),
         id="candle_refresh",
         replace_existing=True,
         misfire_grace_time=60,
     )
 
-    # Every 30 min (offset 2 min): run signal pipeline
+    # Every 15 min (offset 2 min): run signal pipeline
     scheduler.add_job(
         signal_pipeline.run,
-        IntervalTrigger(minutes=30, start_date="2024-01-01 00:02:00"),
+        IntervalTrigger(minutes=15, start_date="2024-01-01 00:02:00"),
         id="signal_pipeline",
         replace_existing=True,
         misfire_grace_time=120,
