@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -8,6 +9,7 @@ from app.database import AsyncSessionLocal
 from app.models.tables import Signal, Outcome, StrategyPerformance, SystemState
 from app.config import settings
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
@@ -15,6 +17,17 @@ templates = Jinja2Templates(directory="app/templates")
 @router.get("/", response_class=HTMLResponse)
 @router.get("/dashboard/", response_class=HTMLResponse)
 async def dashboard(request: Request):
+    try:
+        return await _dashboard_data(request)
+    except Exception as e:
+        log.error("Dashboard DB error: %s", e)
+        return HTMLResponse(
+            content=_db_error_page(str(e)),
+            status_code=503,
+        )
+
+
+async def _dashboard_data(request: Request) -> HTMLResponse:
     async with AsyncSessionLocal() as session:
         cutoff_7d = datetime.now(tz=timezone.utc) - timedelta(days=7)
 
@@ -91,6 +104,39 @@ async def dashboard(request: Request):
         "equity_data": equity,
         "equity_labels": equity_labels,
     })
+
+
+def _db_error_page(detail: str) -> str:
+    return f"""<!DOCTYPE html>
+<html>
+<head><title>Claude Trader — DB not ready</title>
+<style>
+  body {{ font-family: monospace; background: #0f0f0f; color: #e0e0e0;
+         display: flex; align-items: center; justify-content: center;
+         height: 100vh; margin: 0; }}
+  .box {{ max-width: 560px; padding: 2rem; border: 1px solid #333;
+          border-radius: 8px; }}
+  h2 {{ color: #f59e0b; margin-top: 0; }}
+  code {{ background: #1a1a1a; padding: .2em .4em; border-radius: 4px;
+          font-size: .85em; word-break: break-all; }}
+  ol {{ line-height: 1.8; }}
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>Database not reachable</h2>
+  <p>The app started but cannot connect to Postgres. Most likely
+  <code>DATABASE_URL</code> is not set in your Render environment.</p>
+  <ol>
+    <li>Go to <strong>Render dashboard → claude-trader → Environment</strong></li>
+    <li>Add <code>DATABASE_URL</code> — copy the <em>Internal Connection String</em>
+        from your <strong>traderdb</strong> Render database page</li>
+    <li>Save &amp; redeploy (Render redeploys automatically on env changes)</li>
+  </ol>
+  <p style="color:#6b7280;font-size:.8em">Error: {detail}</p>
+</div>
+</body>
+</html>"""
 
 
 @router.get("/chart/", response_class=HTMLResponse)
