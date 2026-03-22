@@ -16,6 +16,33 @@ log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler(timezone="UTC")
 
 
+async def _data_retention() -> None:
+    """Prune old rows to stay within the 1 GB free DB limit."""
+    from sqlalchemy import delete
+    from datetime import datetime, timezone, timedelta
+    from app.database import AsyncSessionLocal
+    from app.models.tables import Candle, FundingRate, OpenInterest, BacktestResult, Signal, Outcome
+
+    now = datetime.now(tz=timezone.utc)
+    async with AsyncSessionLocal() as session:
+        # Candles: keep 90 days
+        await session.execute(delete(Candle).where(Candle.open_time < now - timedelta(days=90)))
+        # Funding rates + OI: keep 30 days
+        await session.execute(delete(FundingRate).where(FundingRate.funding_time < now - timedelta(days=30)))
+        await session.execute(delete(OpenInterest).where(OpenInterest.timestamp < now - timedelta(days=30)))
+        # Backtest results: keep 30 days
+        await session.execute(delete(BacktestResult).where(BacktestResult.run_at < now - timedelta(days=30)))
+        # Resolved signals older than 90 days (outcomes cascade-delete automatically)
+        await session.execute(
+            delete(Signal).where(
+                Signal.generated_at < now - timedelta(days=90),
+                Signal.status.in_(["WIN", "LOSS", "EXPIRED"]),
+            )
+        )
+        await session.commit()
+    log.info("Data retention complete.")
+
+
 async def _health_digest() -> None:
     """Build and send a daily health digest to Telegram."""
     from sqlalchemy import select, func
@@ -101,11 +128,19 @@ def setup_scheduler() -> AsyncIOScheduler:
         misfire_grace_time=300,
     )
 
-    # Daily 03:00 UTC: feedback controller + data retention
+    # Daily 03:00 UTC: feedback controller
     scheduler.add_job(
         feedback_controller.update_performance_scores,
         CronTrigger(hour=3, minute=0, timezone="UTC"),
         id="feedback_controller",
+        replace_existing=True,
+    )
+
+    # Daily 03:30 UTC: data retention (prune old rows)
+    scheduler.add_job(
+        _data_retention,
+        CronTrigger(hour=3, minute=30, timezone="UTC"),
+        id="data_retention",
         replace_existing=True,
     )
 

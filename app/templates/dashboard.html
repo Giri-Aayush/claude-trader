@@ -36,6 +36,34 @@
   </div>
 </div>
 
+<!-- Market context: funding rate + open interest -->
+<div class="grid-2" style="margin-bottom:16px;">
+  <div class="stat">
+    {% if funding_rate is not none %}
+      <div class="value {% if funding_rate > 0.1 %}short{% elif funding_rate < -0.1 %}long{% endif %}">
+        {{ "%+.4f"|format(funding_rate) }}%
+      </div>
+      <div class="label">Funding Rate
+        {% if funding_rate > 0.1 %} — longs paying, favour shorts
+        {% elif funding_rate < -0.1 %} — shorts paying, favour longs
+        {% else %} — neutral{% endif %}
+      </div>
+    {% else %}
+      <div class="value" style="color:#6b7280">—</div>
+      <div class="label">Funding Rate (no data yet)</div>
+    {% endif %}
+  </div>
+  <div class="stat">
+    {% if open_interest is not none %}
+      <div class="value">{{ open_interest }}B</div>
+      <div class="label">Open Interest (USD)</div>
+    {% else %}
+      <div class="value" style="color:#6b7280">—</div>
+      <div class="label">Open Interest (no data yet)</div>
+    {% endif %}
+  </div>
+</div>
+
 <div class="grid-2">
   <!-- Strategy performance -->
   <div class="card">

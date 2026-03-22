@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from datetime import datetime, timezone, timedelta
 
 from app.database import AsyncSessionLocal
-from app.models.tables import Signal, Outcome, StrategyPerformance, SystemState
+from app.models.tables import Signal, Outcome, StrategyPerformance, SystemState, FundingRate, OpenInterest
 from app.config import settings
 
 log = logging.getLogger(__name__)
@@ -50,6 +50,18 @@ async def _dashboard_data(request: Request) -> HTMLResponse:
         cb = await session.get(SystemState, "circuit_breaker_active")
         cb_active = cb.value == "true" if cb else False
         daily_loss = await session.get(SystemState, "daily_loss_pct")
+
+        # Latest funding rate
+        latest_fr = (await session.execute(
+            select(FundingRate).where(FundingRate.symbol == settings.SYMBOL)
+            .order_by(FundingRate.funding_time.desc()).limit(1)
+        )).scalar_one_or_none()
+
+        # Latest open interest
+        latest_oi = (await session.execute(
+            select(OpenInterest).where(OpenInterest.symbol == settings.SYMBOL)
+            .order_by(OpenInterest.timestamp.desc()).limit(1)
+        )).scalar_one_or_none()
 
         # 7d summary
         wins_7d = (await session.execute(
@@ -103,6 +115,8 @@ async def _dashboard_data(request: Request) -> HTMLResponse:
         "total_trades_7d": total_7d,
         "equity_data": equity,
         "equity_labels": equity_labels,
+        "funding_rate": round(float(latest_fr.funding_rate) * 100, 4) if latest_fr else None,
+        "open_interest": round(float(latest_oi.open_interest) / 1e9, 2) if latest_oi else None,
     })
 
 
