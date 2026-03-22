@@ -3,6 +3,8 @@ Claude BTC Perp Trader — FastAPI entrypoint.
 """
 
 import logging
+import os
+import sqlalchemy
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -21,9 +23,24 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 
+async def _run_migrations() -> None:
+    """Run init.sql on startup — safe to re-run (CREATE TABLE IF NOT EXISTS)."""
+    sql_path = os.path.join(os.path.dirname(__file__), "..", "migrations", "init.sql")
+    try:
+        with open(sql_path) as f:
+            sql = f.read()
+        async with engine.begin() as conn:
+            await conn.execute(sqlalchemy.text(sql))
+        log.info("Migrations applied.")
+    except Exception as e:
+        log.warning("Migration step skipped or failed: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("Starting Claude BTC Perp Trader...")
+
+    await _run_migrations()
 
     # Initial candle refresh on startup
     try:
