@@ -24,14 +24,19 @@ log = logging.getLogger(__name__)
 
 
 async def _run_migrations() -> None:
-    """Run init.sql on startup — safe to re-run (CREATE TABLE IF NOT EXISTS)."""
+    """Run init.sql on startup — safe to re-run (CREATE TABLE IF NOT EXISTS).
+    Executes each statement individually because asyncpg rejects multi-statement strings.
+    """
     sql_path = os.path.join(os.path.dirname(__file__), "..", "migrations", "init.sql")
     try:
         with open(sql_path) as f:
             sql = f.read()
+        # Strip comments and split into individual statements
+        statements = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
         async with engine.begin() as conn:
-            await conn.execute(sqlalchemy.text(sql))
-        log.info("Migrations applied.")
+            for stmt in statements:
+                await conn.execute(sqlalchemy.text(stmt))
+        log.info("Migrations applied (%d statements).", len(statements))
     except Exception as e:
         log.warning("Migration step skipped or failed: %s", e)
 
