@@ -1,0 +1,22 @@
+PRODUCT.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Environment
+.env
+.env.*
+
+# PostgreSQL
+*.sql.bak
+
+# Docker
+*.log
+
+# OS
+.DS_Store

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — BTC Perp Trader{% endblock %}
+
+{% block alert %}
+{% if circuit_breaker %}
+<div class="alert-bar alert-red">⛔ CIRCUIT BREAKER ACTIVE — No new signals until cooldown expires</div>
+{% endif %}
+{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<h1 style="color:#f0f6fc; margin-bottom:16px; font-size:18px;">{{ symbol }} — Signal Dashboard</h1>
+
+<!-- Summary stats -->
+<div class="grid-4" style="margin-bottom:16px;">
+  <div class="stat">
+    <div class="value {% if win_rate_7d >= 55 %}long{% elif win_rate_7d < 45 %}short{% endif %}">{{ win_rate_7d }}%</div>
+    <div class="label">Win Rate (7d)</div>
+  </div>
+  <div class="stat">
+    <div class="value">{{ total_trades_7d }}</div>
+    <div class="label">Trades (7d)</div>
+  </div>
+  <div class="stat">
+    <div class="value {% if daily_loss_pct > 1.5 %}short{% endif %}">{{ daily_loss_pct }}%</div>
+    <div class="label">Daily Loss Used</div>
+  </div>
+  <div class="stat">
+    <div class="value {% if circuit_breaker %}short{% else %}long{% endif %}">
+      {% if circuit_breaker %}HALTED{% else %}ACTIVE{% endif %}
+    </div>
+    <div class="label">System Status</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Strategy performance -->
+  <div class="card">
+    <h2>Strategy Rankings</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Strategy</th>
+          <th>Score</th>
+          <th>Win %</th>
+          <th>Sharpe</th>
+          <th>Trades</th>
+          <th>Streak</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in perfs %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>
+            <span class="badge {% if p.score >= 60 %}badge-green{% elif p.score >= 40 %}badge-yellow{% else %}badge-red{% endif %}">
+              {{ p.score }}
+            </span>
+          </td>
+          <td class="{% if p.win_rate >= 55 %}long{% elif p.win_rate < 45 %}short{% endif %}">{{ p.win_rate }}%</td>
+          <td>{{ p.sharpe }}</td>
+          <td>{{ p.trades }}</td>
+          <td>
+            {% if p.consec_losses > 0 %}
+            <span class="badge badge-red">-{{ p.consec_losses }}L</span>
+            {% else %}
+            <span class="badge badge-green">OK</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Equity curve -->
+  <div class="card">
+    <h2>Equity Curve</h2>
+    <canvas id="equityChart" height="180"></canvas>
+  </div>
+</div>
+
+<!-- Signal history -->
+<div class="card">
+  <h2>Signal History</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Time</th>
+        <th>Strategy</th>
+        <th>Dir</th>
+        <th>Entry</th>
+        <th>SL</th>
+        <th>TP</th>
+        <th>Conf</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in signals %}
+      <tr>
+        <td>{{ s.id }}</td>
+        <td>{{ s.generated_at }}</td>
+        <td>{{ s.strategy }}</td>
+        <td class="{% if s.direction == 'LONG' %}long{% else %}short{% endif %}">{{ s.direction }}</td>
+        <td>${{ "%.2f"|format(s.entry) }}</td>
+        <td>${{ "%.2f"|format(s.sl) }}</td>
+        <td>${{ "%.2f"|format(s.tp) }}</td>
+        <td>{{ s.confidence|int }}</td>
+        <td>
+          <span class="badge
+            {% if s.status == 'WIN' %}badge-green
+            {% elif s.status == 'LOSS' %}badge-red
+            {% elif s.status == 'ACTIVE' %}badge-blue
+            {% elif s.status == 'EXPIRED' %}badge-gray
+            {% else %}badge-yellow{% endif %}">
+            {{ s.status }}
+          </span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+const ctx = document.getElementById('equityChart').getContext('2d');
+const equityData = {{ equity_data | tojson }};
+const labels = {{ equity_labels | tojson }};
+const startVal = equityData[0] || 100;
+const endVal = equityData[equityData.length - 1] || 100;
+const lineColor = endVal >= startVal ? '#56d364' : '#f85149';
+
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{
+      data: equityData,
+      borderColor: lineColor,
+      borderWidth: 1.5,
+      pointRadius: 0,
+      fill: true,
+      backgroundColor: lineColor + '22',
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { display: false },
+      y: {
+        ticks: { color: '#8b949e', font: { family: 'Courier New', size: 11 } },
+        grid: { color: '#21262d' },
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

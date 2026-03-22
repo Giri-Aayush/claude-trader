@@ -1,0 +1,16 @@
+fastapi==0.135.1
+uvicorn[standard]==0.42.0
+sqlalchemy[asyncio]==2.0.48
+asyncpg==0.31.0
+APScheduler==3.11.2
+ccxt
+pandas==3.0.1
+numpy==2.4.3
+scipy==1.17.1
+pandas-ta-classic
+python-telegram-bot[asyncio]==22.7
+httpx==0.28.1
+jinja2
+pydantic-settings
+python-dotenv
+aiofiles

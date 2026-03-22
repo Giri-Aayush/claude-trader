@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Chart — {{ symbol }}{% endblock %}
+
+{% block head %}
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
+  <h1 style="color:#f0f6fc; font-size:18px;">{{ symbol }} — {{ tf }}</h1>
+  <div style="display:flex; gap:8px;">
+    {% for timeframe in ['M15','H1','H4','D1'] %}
+    <a href="/chart/?tf={{ timeframe }}"
+       style="padding:4px 12px; border-radius:4px; font-size:12px;
+              background: {% if tf == timeframe %}#f0883e{% else %}#21262d{% endif %};
+              color: {% if tf == timeframe %}#0d1117{% else %}#c9d1d9{% endif %};">
+      {{ timeframe }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card" style="padding:0; overflow:hidden;">
+  <div id="chart" style="width:100%; height:520px;"></div>
+</div>
+
+<script>
+const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+  layout: {
+    background: { color: '#161b22' },
+    textColor: '#8b949e',
+  },
+  grid: {
+    vertLines: { color: '#21262d' },
+    horzLines: { color: '#21262d' },
+  },
+  crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+  rightPriceScale: { borderColor: '#30363d' },
+  timeScale: { borderColor: '#30363d', timeVisible: true },
+  width: document.getElementById('chart').clientWidth,
+  height: 520,
+});
+
+const candleSeries = chart.addCandlestickSeries({
+  upColor: '#56d364',
+  downColor: '#f85149',
+  borderUpColor: '#56d364',
+  borderDownColor: '#f85149',
+  wickUpColor: '#56d364',
+  wickDownColor: '#f85149',
+});
+
+async function loadCandles() {
+  const resp = await fetch('/candles/{{ tf }}?limit=200');
+  const data = await resp.json();
+  candleSeries.setData(data.map(d => ({
+    time: d.time,
+    open: d.open,
+    high: d.high,
+    low: d.low,
+    close: d.close,
+  })));
+  chart.timeScale().fitContent();
+  await loadSignalMarkers(data);
+}
+
+async function loadSignalMarkers(candles) {
+  const resp = await fetch('/status');
+  const status = await resp.json();
+  if (!status.last_signal) return;
+
+  const sig = status.last_signal;
+  const markers = [];
+
+  // Find the candle closest to signal time
+  if (sig.generated_at) {
+    const sigTime = Math.floor(new Date(sig.generated_at).getTime() / 1000);
+    const closest = candles.reduce((prev, curr) =>
+      Math.abs(curr.time - sigTime) < Math.abs(prev.time - sigTime) ? curr : prev
+    );
+    markers.push({
+      time: closest.time,
+      position: sig.direction === 'LONG' ? 'belowBar' : 'aboveBar',
+      color: sig.direction === 'LONG' ? '#56d364' : '#f85149',
+      shape: sig.direction === 'LONG' ? 'arrowUp' : 'arrowDown',
+      text: sig.strategy + ' ' + sig.direction,
+    });
+  }
+
+  if (markers.length > 0) {
+    candleSeries.setMarkers(markers);
+  }
+}
+
+loadCandles();
+
+// Auto-refresh every 60 seconds
+setInterval(loadCandles, 60000);
+
+window.addEventListener('resize', () => {
+  chart.applyOptions({ width: document.getElementById('chart').clientWidth });
+});
+</script>
+{% endblock %}
