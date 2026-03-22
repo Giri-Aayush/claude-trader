@@ -27,12 +27,14 @@ async def _run_migrations() -> None:
     """Run init.sql on startup — safe to re-run (CREATE TABLE IF NOT EXISTS).
     Executes each statement individually because asyncpg rejects multi-statement strings.
     """
+    import re
     sql_path = os.path.join(os.path.dirname(__file__), "..", "migrations", "init.sql")
     try:
         with open(sql_path) as f:
             sql = f.read()
-        # Strip comments and split into individual statements
-        statements = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
+        # Remove all -- comments before splitting, so comment lines don't swallow CREATE statements
+        sql_clean = re.sub(r"--[^\n]*", "", sql)
+        statements = [s.strip() for s in sql_clean.split(";") if s.strip()]
         async with engine.begin() as conn:
             for stmt in statements:
                 await conn.execute(sqlalchemy.text(stmt))
