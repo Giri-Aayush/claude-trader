@@ -1,4 +1,5 @@
 import logging
+import traceback
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -20,9 +21,9 @@ async def dashboard(request: Request):
     try:
         return await _dashboard_data(request)
     except Exception as e:
-        log.error("Dashboard DB error: %s", e)
+        log.error("Dashboard error: %s\n%s", e, traceback.format_exc())
         return HTMLResponse(
-            content=_db_error_page(str(e)),
+            content=_db_error_page(traceback.format_exc()),
             status_code=503,
         )
 
