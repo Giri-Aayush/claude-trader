@@ -35,8 +35,8 @@ LIMIT = 200  # bars per fetch
 CCXT_SYMBOL = "BTC/USDT:USDT"  # Bybit unified linear perp symbol
 
 
-def _make_exchange() -> ccxt.bybit:
-    return ccxt.bybit({"options": {"defaultType": "linear"}})
+def _make_exchange() -> ccxt.okx:
+    return ccxt.okx({"options": {"defaultType": "swap"}})
 
 
 async def fetch_candles(tf_key: str) -> None:
