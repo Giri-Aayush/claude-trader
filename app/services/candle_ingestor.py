@@ -31,11 +31,7 @@ LIMIT = 200  # bars per fetch
 
 
 def _make_exchange() -> ccxt.binanceusdm:
-    return ccxt.binanceusdm({
-        "apiKey": settings.BINANCE_API_KEY or None,
-        "secret": settings.BINANCE_API_SECRET or None,
-        "options": {"defaultType": "future"},
-    })
+    return ccxt.binanceusdm({"options": {"defaultType": "future"}})
 
 
 async def fetch_candles(tf_key: str) -> None:

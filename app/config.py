@@ -4,9 +4,6 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://trader:password@localhost:5432/traderdb"
 
-    BINANCE_API_KEY: str = ""
-    BINANCE_API_SECRET: str = ""
-
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_CHAT_ID: str = ""
 
