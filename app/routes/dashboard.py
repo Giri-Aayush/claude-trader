@@ -12,6 +12,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
+@router.get("/", response_class=HTMLResponse)
 @router.get("/dashboard/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     async with AsyncSessionLocal() as session:

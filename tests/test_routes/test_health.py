@@ -19,11 +19,7 @@ def _make_test_app() -> FastAPI:
     test_app.include_router(health.router)
     test_app.include_router(status.router)
     test_app.include_router(candles.router)
-
-    @test_app.get("/")
-    def root():
-        return {"message": "visit /dashboard/"}
-
+    test_app.include_router(dashboard.router)
     return test_app
 
 
@@ -34,13 +30,20 @@ def client():
 
 
 class TestRootRoute:
-    def test_root_returns_200(self, client):
-        resp = client.get("/")
-        assert resp.status_code == 200
+    def test_root_returns_html(self, client):
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=False)
+        mock_session.execute = AsyncMock(
+            return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[]))),
+                                   scalar=MagicMock(return_value=0))
+        )
+        mock_session.get = AsyncMock(return_value=None)
 
-    def test_root_mentions_dashboard(self, client):
-        resp = client.get("/")
-        assert "dashboard" in resp.json()["message"].lower()
+        with patch("app.routes.dashboard.AsyncSessionLocal", return_value=mock_session):
+            resp = client.get("/")
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers["content-type"]
 
 
 class TestHealthRoute:

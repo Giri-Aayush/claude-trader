@@ -71,8 +71,3 @@ app.include_router(health.router)
 app.include_router(status.router)
 app.include_router(candles.router)
 app.include_router(dashboard.router)
-
-
-@app.get("/")
-async def root():
-    return {"message": "Claude BTC Perp Trader running. Visit /dashboard/ for the UI."}
