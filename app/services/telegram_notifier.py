@@ -34,20 +34,21 @@ async def send_signal(
         return
 
     rr = abs(tp - entry) / abs(entry - sl) if abs(entry - sl) > 0 else 0
-    emoji = "🟢" if direction == "LONG" else "🔴"
+    sl_pct = abs(entry - sl) / entry * 100
+    tp_pct = abs(tp - entry) / entry * 100
+    arrow = "▲" if direction == "LONG" else "▼"
+    sl_sign = "−" if direction == "LONG" else "+"
+    tp_sign = "+" if direction == "LONG" else "−"
 
     msg = (
-        f"{emoji} *BTCUSDT.P — {direction}*\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"*Strategy:* {strategy.replace('_', ' ').title()}\n"
-        f"*Entry:* `${entry:,.2f}`\n"
-        f"*Stop Loss:* `${sl:,.2f}`\n"
-        f"*Take Profit:* `${tp:,.2f}`\n"
-        f"*R:R:* `{rr:.2f}`\n"
-        f"*Confidence:* `{confidence:.0f}/100`\n"
-        f"*Size:* `{position_pct * 100:.2f}% of account`\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"_{reasoning}_"
+        f"{arrow} *{direction}*  ·  BTCUSDT.P  ·  {strategy.replace('_', ' ').title()}\n"
+        f"\n"
+        f"`Entry   ${entry:>12,.2f}`\n"
+        f"`SL      ${sl:>12,.2f}  ({sl_sign}{sl_pct:.2f}%)`\n"
+        f"`TP      ${tp:>12,.2f}  ({tp_sign}{tp_pct:.2f}%)`\n"
+        f"`R:R     {rr:>6.2f}×   ·   Size {position_pct * 100:.1f}%`\n"
+        f"\n"
+        f"_Confidence {confidence:.0f}/100 · {reasoning}_"
     )
 
     try:
@@ -66,15 +67,18 @@ async def send_health_digest(metrics: dict) -> None:
     if not settings.TELEGRAM_BOT_TOKEN or not settings.TELEGRAM_CHAT_ID:
         return
 
+    status = "Paused ⛔" if metrics.get("circuit_breaker") else "Running ✓"
+    top = metrics.get("top_strategy", "N/A").replace("_", " ").title()
+
     msg = (
-        f"📊 *Daily Health Digest — {datetime.utcnow().strftime('%Y-%m-%d')}*\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"*Win Rate (7d):* `{metrics.get('win_rate_7d', 0) * 100:.1f}%`\n"
-        f"*Sharpe (7d):* `{metrics.get('sharpe_7d', 0):.2f}`\n"
-        f"*Max Drawdown:* `{metrics.get('max_drawdown', 0) * 100:.2f}%`\n"
-        f"*Total Signals (7d):* `{metrics.get('total_signals_7d', 0)}`\n"
-        f"*Circuit Breaker:* `{'ACTIVE ⛔' if metrics.get('circuit_breaker') else 'OK ✅'}`\n"
-        f"*Top Strategy:* `{metrics.get('top_strategy', 'N/A')}`\n"
+        f"*Daily Digest*  ·  {datetime.utcnow().strftime('%d %b %Y')}\n"
+        f"\n"
+        f"`Win Rate    {metrics.get('win_rate_7d', 0) * 100:>6.1f}%`\n"
+        f"`Sharpe      {metrics.get('sharpe_7d', 0):>6.2f}`\n"
+        f"`Drawdown    {metrics.get('max_drawdown', 0) * 100:>6.2f}%`\n"
+        f"`Signals     {metrics.get('total_signals_7d', 0):>6}`\n"
+        f"`Top         {top}`\n"
+        f"`System      {status}`\n"
     )
 
     try:
@@ -93,11 +97,10 @@ async def send_circuit_breaker_alert(consecutive_losses: int) -> None:
         return
 
     msg = (
-        f"⛔ *CIRCUIT BREAKER TRIGGERED*\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"{consecutive_losses} consecutive stop losses hit.\n"
-        f"System paused for *24 hours*. No new signals will be sent.\n"
-        f"Review strategy performance before resuming."
+        f"⛔ *Trading Paused*\n"
+        f"\n"
+        f"`{consecutive_losses} consecutive losses hit the limit.`\n"
+        f"_System halted for 24 hours. No new signals will be sent._"
     )
 
     try:

@@ -16,7 +16,7 @@ Entry logic (LONG):
 
 from typing import Optional
 import pandas as pd
-import pandas_ta as ta
+import pandas_ta_classic as ta
 
 from app.strategies.base import BaseStrategy, CandidateSignal
 

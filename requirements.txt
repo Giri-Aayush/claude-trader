@@ -7,7 +7,7 @@ ccxt
 pandas==3.0.1
 numpy==2.4.3
 scipy==1.17.1
-pandas-ta-classic
+pandas-ta-classic  # imports as pandas_ta_classic
 python-telegram-bot[asyncio]==22.7
 httpx==0.28.1
 jinja2
