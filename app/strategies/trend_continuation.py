@@ -84,10 +84,10 @@ class TrendContinuationStrategy(BaseStrategy):
         atr = float(last["atr"])
         bar_index = len(m15) - 1
 
-        # LONG: macro bull + H1 above EMA + M15 touching EMA20 with RSI recovering
+        # LONG: macro bull + H1 above EMA + M15 touching EMA20 with RSI in bullish zone
         if h4_bullish and h1_above_ema:
-            touching_ema20 = abs(close - ema20) <= 0.5 * atr
-            rsi_recovering = prev_rsi < 45 and rsi > 45
+            touching_ema20 = abs(close - ema20) <= 1.0 * atr
+            rsi_recovering = 45 <= rsi <= 65
             if touching_ema20 and rsi_recovering and close > ema20:
                 sl = min(ema50_m15, close - 0.8 * atr)
                 sl_dist = close - sl
@@ -112,10 +112,10 @@ class TrendContinuationStrategy(BaseStrategy):
                     bar_index=bar_index,
                 )
 
-        # SHORT: macro bear + H1 below EMA + M15 touching EMA20 with RSI fading
+        # SHORT: macro bear + H1 below EMA + M15 touching EMA20 with RSI in bearish zone
         if h4_bearish and h1_below_ema:
-            touching_ema20 = abs(close - ema20) <= 0.5 * atr
-            rsi_fading = prev_rsi > 55 and rsi < 55
+            touching_ema20 = abs(close - ema20) <= 1.0 * atr
+            rsi_fading = 35 <= rsi <= 55
             if touching_ema20 and rsi_fading and close < ema20:
                 sl = max(ema50_m15, close + 0.8 * atr)
                 sl_dist = sl - close

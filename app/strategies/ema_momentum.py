@@ -24,7 +24,7 @@ EMA_FAST = 9
 EMA_SLOW = 21
 EMA_TREND = 50
 ADX_PERIOD = 14
-ADX_THRESHOLD = 28
+ADX_THRESHOLD = 22
 ATR_PERIOD = 14
 SL_ATR_MULT = 1.5
 MIN_RR = 2.5
@@ -74,12 +74,18 @@ class EmaMomentumStrategy(BaseStrategy):
         ema_trend = float(last["ema_trend"])
         atr = float(last["atr"])
 
-        prev_fast = float(prev["ema_fast"])
-        prev_slow = float(prev["ema_slow"])
-
-        # Detect fresh crossover
-        bullish_cross = prev_fast <= prev_slow and ema_fast > ema_slow
-        bearish_cross = prev_fast >= prev_slow and ema_fast < ema_slow
+        # Detect crossover within the last 3 bars (not just the exact current bar)
+        bullish_cross = False
+        bearish_cross = False
+        for i in range(max(1, bar_index - 2), bar_index + 1):
+            ef_curr = float(m15["ema_fast"].iloc[i])
+            es_curr = float(m15["ema_slow"].iloc[i])
+            ef_prev = float(m15["ema_fast"].iloc[i - 1])
+            es_prev = float(m15["ema_slow"].iloc[i - 1])
+            if ef_prev <= es_prev and ef_curr > es_curr:
+                bullish_cross = True
+            if ef_prev >= es_prev and ef_curr < es_curr:
+                bearish_cross = True
 
         if atr == 0:
             return None
